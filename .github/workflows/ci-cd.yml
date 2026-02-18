@@ -82,7 +82,7 @@ jobs:
             sudo docker run -d \
               --name islamic_bank_app \
               --restart unless-stopped \
-              -p 5000:5000 \
+              -p 80:5000 \
               -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
               -e FLASK_SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }} \
               ghcr.io/karimfyd/islamic-bank-agent:latest
