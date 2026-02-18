@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic AI · Islamic Bank Transformation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+    <!-- marked for client-side markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+
+<body>
+    <div class="container my-5">
+        <div class="text-center mb-4">
+            <h1 class="display-5 fw-bold">Agentic Strategy Consultant</h1>
+            <p class="lead">Digital & Growth Transformation for a GCC Islamic Bank</p>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-dark text-white">
+                        <strong>Bank Context (editable)</strong>
+                    </div>
+                    <div class="card-body">
+                        <textarea id="context-input" class="form-control" rows="20">{{ default_context }}</textarea>
+                        <button id="generate-btn" class="btn btn-primary mt-3 w-100">
+                            <span id="spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                            Generate Strategy Proposal
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-dark text-white">
+                        <strong> AI‑Agents Proposal</strong>
+                    </div>
+                    <div class="card-body" id="proposal-container">
+                        <!-- Pipeline Diagram -->
+                        <div class="pipeline-diagram mb-4 text-center">
+                            <div class="pipeline-row">
+                                <div class="pipeline-node">Market Analyst</div>
+                                <div class="pipeline-arrow">→</div>
+                                <div class="pipeline-node">Problem Analyst</div>
+                                <div class="pipeline-arrow">→</div>
+                                <div class="pipeline-node">Strategy Architect</div>
+                                <div class="pipeline-arrow">→</div>
+                                <div class="pipeline-node">Financial Analyst</div>
+                                <div class="pipeline-arrow">→</div>
+                                <div class="pipeline-node">Risk Specialist</div>
+                            </div>
+                            <div class="pipeline-converge">
+                                <div class="pipeline-arrow down">↓</div>
+                                <div class="pipeline-node editor">Editor</div>
+                            </div>
+                        </div>
+
+                        <!-- Agent Status with Summaries -->
+                        <div id="agent-list" class="d-flex flex-wrap gap-3 mb-3"></div>
+
+                        <div class="text-muted" id="placeholder">
+                            Click generate to see the Agentic AI proposal...
+                        </div>
+                        <div id="proposal-content" class="markdown-body"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const generateBtn = document.getElementById('generate-btn');
+        const spinner = document.getElementById('spinner');
+        const contextInput = document.getElementById('context-input');
+        const proposalContent = document.getElementById('proposal-content');
+        const placeholder = document.getElementById('placeholder');
+        const agentList = document.getElementById('agent-list');
+
+        let eventSource = null;
+        let proposalText = '';  // accumulates raw markdown
+
+        function updateAgentStatus(agent, status, summary) {
+            const agentId = `agent-${agent.replace(/\s/g, '')}`;
+            let agentDiv = document.getElementById(agentId);
+            if (!agentDiv) {
+                agentDiv = document.createElement('div');
+                agentDiv.id = agentId;
+                agentDiv.className = 'agent-item';
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-secondary';
+                badge.textContent = agent;
+                agentDiv.appendChild(badge);
+                const summaryDiv = document.createElement('div');
+                summaryDiv.className = 'agent-summary small text-muted';
+                agentDiv.appendChild(summaryDiv);
+                agentList.appendChild(agentDiv);
+            }
+            const badge = agentDiv.querySelector('.badge');
+            const summaryDiv = agentDiv.querySelector('.agent-summary');
+
+            if (status === 'started') {
+                badge.className = 'badge bg-warning text-dark';
+                badge.innerHTML = `${agent} <span class="spinner-border spinner-border-sm" style="width:0.7rem; height:0.7rem;"></span>`;
+                summaryDiv.textContent = 'Thinking...';
+            } else if (status === 'finished') {
+                badge.className = 'badge bg-success';
+                badge.innerHTML = `${agent} ✓`;
+                if (summary) {
+                    summaryDiv.textContent = summary;
+                } else {
+                    summaryDiv.textContent = '✓ Completed.';
+                }
+            }
+
+            if (summary && status !== 'started') {
+                summaryDiv.textContent = summary;
+            }
+        }
+
+        generateBtn.addEventListener('click', () => {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            // Reset UI
+            proposalContent.innerHTML = '';
+            agentList.innerHTML = '';
+            placeholder.style.display = 'none';
+            spinner.classList.remove('d-none');
+            generateBtn.disabled = true;
+            proposalText = '';
+
+            const context = encodeURIComponent(contextInput.value);
+            eventSource = new EventSource(`/generate_agentic_stream?context=${context}`);
+
+            eventSource.addEventListener('status', (e) => {
+                const data = JSON.parse(e.data);
+                updateAgentStatus(data.agent, data.status);
+            });
+
+            eventSource.addEventListener('summary', (e) => {
+                const data = JSON.parse(e.data);
+                updateAgentStatus(data.agent, 'finished', data.summary);
+            });
+
+            eventSource.addEventListener('token', (e) => {
+                const data = JSON.parse(e.data);
+                proposalText += data.token;
+                // Render markdown progressively
+                try {
+                    proposalContent.innerHTML = marked.parse(proposalText);
+                } catch (err) {
+                    console.error('Markdown parsing error:', err);
+                    // Fallback: show raw text
+                    proposalContent.innerHTML = '<pre>' + proposalText + '</pre>';
+                }
+            });
+
+            eventSource.addEventListener('done', (e) => {
+                // Optionally, you could ignore the backend HTML and rely on the already rendered markdown.
+                // But to be safe, we'll keep the client-side rendered version.
+                // Just stop the stream and re-render one last time.
+                try {
+                    proposalContent.innerHTML = marked.parse(proposalText);
+                } catch (err) {
+                    console.error('Final markdown error:', err);
+                }
+                spinner.classList.add('d-none');
+                generateBtn.disabled = false;
+                eventSource.close();
+            });
+
+            eventSource.addEventListener('error', (e) => {
+                console.error('SSE error', e);
+                proposalContent.innerHTML = '<div class="alert alert-danger">Connection error</div>';
+                spinner.classList.add('d-none');
+                generateBtn.disabled = false;
+                eventSource.close();
+            });
+        });
+    </script>
+</body>
+
+</html>
