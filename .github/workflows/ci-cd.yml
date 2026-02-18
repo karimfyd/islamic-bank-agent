@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  IMAGE_NAME: islamic-bank-agent
-
 jobs:
   test:
     name: Run Tests
@@ -30,6 +27,7 @@ jobs:
       - name: Run tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          FLASK_SECRET_KEY: ${{ secrets.FLASK_SECRET_KEY }}
         run: pytest tests/ -v || true
 
   build:
@@ -37,6 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -53,3 +55,6 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/karimfyd/islamic-bank-agent:latest
+          build-args: |
+            FLASK_SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
