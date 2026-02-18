@@ -70,27 +70,16 @@ jobs:
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           script: |
-            # Install Docker if not present
-            if ! command -v docker &> /dev/null; then
-              sudo yum update -y
-              sudo yum install -y docker
-              sudo systemctl start docker
-              sudo systemctl enable docker
-              sudo usermod -aG docker ec2-user
-            fi
+            sudo systemctl start docker
 
-            # Login to GHCR
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u karimfyd --password-stdin
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u karimfyd --password-stdin
 
-            # Pull latest image
-            docker pull ghcr.io/karimfyd/islamic-bank-agent:latest
+            sudo docker pull ghcr.io/karimfyd/islamic-bank-agent:latest
 
-            # Stop and remove old container
-            docker stop islamic_bank_app || true
-            docker rm   islamic_bank_app || true
+            sudo docker stop islamic_bank_app || true
+            sudo docker rm   islamic_bank_app || true
 
-            # Run new container
-            docker run -d \
+            sudo docker run -d \
               --name islamic_bank_app \
               --restart unless-stopped \
               -p 5000:5000 \
@@ -98,5 +87,4 @@ jobs:
               -e FLASK_SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }} \
               ghcr.io/karimfyd/islamic-bank-agent:latest
 
-            # Cleanup old images
-            docker image prune -f
+            sudo docker image prune -f
